@@ -1,0 +1,93 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: edge
+    restart: unless-stopped
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ 'CMD-SHELL', 'pg_isready', '-d', 'edge' ]
+      interval: 5s
+      timeout: 4s
+      retries: 6
+      start_period: 5s
+
+  edge:
+    image: "thingsboard/tb-edge:3.8.0EDGE"
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${PORT_WEB}:8080"
+      - "${PORT_MQTT}:1883"
+      - "5683-5688:5683-5688/udp"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/edge
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      CLOUD_ROUTING_KEY: ${TB_EDGE_KEY}
+      CLOUD_ROUTING_SECRET: ${TB_EDGE_SECRET}
+      CLOUD_RPC_HOST: ${TB_SERVER}
+    volumes:
+      - tb_data:/data
+      - log_data:/var/log/tb-edge
+
+  pgadmin:
+    image: dpage/pgadmin4:8
+    restart: unless-stopped
+    ports:
+      - "${PORT_PGADMIN}:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_USER}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+  backup:
+    image: prodrigestivill/postgres-backup-local
+    restart: unless-stopped
+    volumes:
+      - backup:/backups
+    links:
+      - db
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_DB=thingsboard
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - BACKUP_ON_START=TRUE
+      - SCHEDULE=@daily
+      - BACKUP_KEEP_DAYS=7
+      - BACKUP_KEEP_WEEKS=4
+      - BACKUP_KEEP_MONTHS=6
+    profiles:
+      - test
+      - production
+
+volumes:
+  pg_data:
+    name: ${VOLUME_DB}
+    external: true
+
+  tb_data:
+    name: ${VOLUME_EDGE}
+    external: true
+
+  log_data:
+    name: ${VOLUME_LOG}
+    external: true
+
+  pgadmin_data:
+    name: ${VOLUME_PGADMIN}
+    external: true
+
+  backup:
+    name: ${VOLUME_BACKUP}
+    external: true
