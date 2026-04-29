@@ -8,6 +8,8 @@ services:
     restart: unless-stopped
     volumes:
       - pg_data:/var/lib/postgresql/data
+    networks:
+      - io
     healthcheck:
       test: [ 'CMD-SHELL', 'pg_isready', '-d', 'edge' ]
       interval: 5s
@@ -16,7 +18,7 @@ services:
       start_period: 5s
 
   edge:
-    image: "thingsboard/tb-edge:3.8.0EDGE"
+    image: thingsboard/tb-edge:4.3.1EDGE-latest
     restart: unless-stopped
     depends_on:
       db:
@@ -25,6 +27,8 @@ services:
       - "${PORT_WEB}:8080"
       - "${PORT_MQTT}:1883"
       - "5683-5688:5683-5688/udp"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/edge
       SPRING_DATASOURCE_USERNAME: ${DB_USER}
@@ -32,12 +36,15 @@ services:
       CLOUD_ROUTING_KEY: ${TB_EDGE_KEY}
       CLOUD_ROUTING_SECRET: ${TB_EDGE_SECRET}
       CLOUD_RPC_HOST: ${TB_SERVER}
+      CLOUD_RPC_SSL_ENABLED: "false"
     volumes:
       - tb_data:/data
       - log_data:/var/log/tb-edge
+    networks:
+      - io
 
   pgadmin:
-    image: dpage/pgadmin4:8
+    image: dpage/pgadmin4:9
     restart: unless-stopped
     ports:
       - "${PORT_PGADMIN}:80"
@@ -46,12 +53,16 @@ services:
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - io
 
   backup:
-    image: prodrigestivill/postgres-backup-local
+    image: prodrigestivill/postgres-backup-local:17
     restart: unless-stopped
     volumes:
       - backup:/backups
+    networks:
+      - io
     links:
       - db
     depends_on:
@@ -59,10 +70,9 @@ services:
         condition: service_healthy
     environment:
       - POSTGRES_HOST=db
-      - POSTGRES_DB=thingsboard
+      - POSTGRES_DB=edge
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - BACKUP_ON_START=TRUE
       - SCHEDULE=@daily
       - BACKUP_KEEP_DAYS=7
       - BACKUP_KEEP_WEEKS=4
@@ -70,6 +80,13 @@ services:
     profiles:
       - test
       - production
+
+# Execute:
+# docker network create --driver=bridge --subnet=172.30.66.0/24 --gateway=172.30.66.1 io_thingsboard_edge
+networks:
+  io:
+    name: io_thingsboard_edge
+    external: true
 
 volumes:
   pg_data:
