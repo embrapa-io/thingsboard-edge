@@ -207,7 +207,7 @@ main() {
   ensure_volumes
 
   log "Pronto. Suba a stack com: docker compose up -d --wait"
-  log "(o serviço 'init' instala o schema automaticamente no primeiro up)."
+  log "(a imagem do Edge instala o schema sozinha no primeiro launch via /data/.firstlaunch)."
 }
 
 main "$@"

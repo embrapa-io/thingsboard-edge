@@ -32,7 +32,7 @@ docker compose up -d --wait
 
 O `bootstrap.sh` é idempotente e voltado para uso local/dev: gera `.env` (com segredos aleatórios para `DB_PASSWORD` e `PGADMIN_PASSWORD`), cria a rede externa `io_thingsboard_edge` e provisiona os volumes Docker (incluindo bind-mounts de `log/` e `backup/`).
 
-A **instalação do schema** do Edge no PostgreSQL é feita automaticamente pelo serviço _one-shot_ `init` no primeiro `docker compose up`, controlada por um arquivo-marker no volume `tb_data` — então não depende do `bootstrap.sh`. Isso permite que a plataforma de _deploy_ do Embrapa I/O (que provisiona volumes/`.env` por conta própria) suba a stack apenas com `docker compose up -d --wait`.
+A **instalação do schema** do Edge no PostgreSQL é feita automaticamente pelo próprio _entrypoint_ da imagem `thingsboard/tb-edge` no primeiro launch (controlada pelo marker `/data/.firstlaunch` no volume `tb_data`) — então não depende do `bootstrap.sh`. Isso permite que a plataforma de _deploy_ do Embrapa I/O (que provisiona volumes/`.env` por conta própria) suba a stack apenas com `docker compose up -d --wait`.
 
 ## Configuração
 
