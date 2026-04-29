@@ -15,9 +15,15 @@ Imagens fixadas na **macro-versão** de cada componente, recebendo apenas _patch
 | pgAdmin 4 | `dpage/pgadmin4` | `9` |
 | Backup do Postgres | `prodrigestivill/postgres-backup-local` | `17` |
 
+## Pré-requisito: cadastro do Edge no ThingsBoard Server
+
+Antes de configurar/subir esta stack, o Edge precisa estar **cadastrado no ThingsBoard Server** da plataforma Embrapa I/O em [https://iot.embrapa.io](https://iot.embrapa.io). É o cadastro que gera os valores de `TB_EDGE_KEY` e `TB_EDGE_SECRET` exigidos pelo `.env`.
+
+Quem faz o cadastro: um **administrador do _tenant_ da Unidade** da pessoa. Se a Unidade ainda não tiver _tenant_ provisionado, é necessário solicitar à **equipe de suporte da plataforma Embrapa I/O** a criação do _tenant_ antes de cadastrar o Edge.
+
 ## Deploy
 
-Antes de subir a stack, defina no `.env` os parâmetros de conexão com o ThingsBoard Server (`TB_SERVER`, `TB_EDGE_KEY`, `TB_EDGE_SECRET`), obtidos no cadastro do Edge no _server_.
+Com o Edge já cadastrado no _server_, defina no `.env` os parâmetros de conexão (`TB_SERVER`, `TB_EDGE_KEY`, `TB_EDGE_SECRET`) obtidos no cadastro.
 
 ```sh
 ./bootstrap.sh
