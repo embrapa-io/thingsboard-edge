@@ -17,12 +17,47 @@ services:
       retries: 6
       start_period: 5s
 
+  init:
+    image: thingsboard/tb-edge:4.3.1EDGE-latest
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    user: root
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/edge
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        set -e
+        MARKER=/data/.tb-edge-installed
+        if [ -f "$$MARKER" ]; then
+          echo "[init] Schema do Edge já instalado — pulando."
+          exit 0
+        fi
+        echo "[init] Schema ausente — executando install (alguns minutos)..."
+        export INSTALL_TB=true
+        export LOAD_DEMO=false
+        /usr/bin/start-tb-edge.sh
+        touch "$$MARKER"
+        echo "[init] Install concluído — marker $$MARKER criado."
+    volumes:
+      - tb_data:/data
+      - log_data:/var/log/tb-edge
+    networks:
+      - io
+
   edge:
     image: thingsboard/tb-edge:4.3.1EDGE-latest
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
+      init:
+        condition: service_completed_successfully
     ports:
       - "${PORT_WEB}:8080"
       - "${PORT_MQTT}:1883"

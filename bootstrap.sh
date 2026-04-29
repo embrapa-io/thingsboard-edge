@@ -197,37 +197,6 @@ ensure_volumes() {
   ensure_bind_volume "${v_backup}" "${BACKUP_DIR}" "${PG_UID}" "${PG_GID}"
 }
 
-# Detecta se o schema do ThingsBoard Edge já foi instalado no PostgreSQL
-# (tabela 'admin_settings', presente desde o primeiro install do Edge).
-edge_schema_installed() {
-  local db_user
-  db_user="$(read_env_var DB_USER)"
-  docker compose exec -T db \
-    psql -U "${db_user}" -d edge -tAc "SELECT 1 FROM admin_settings LIMIT 1" \
-    >/dev/null 2>&1
-}
-
-# Roda o instalador do ThingsBoard Edge (uma vez). O entrypoint da imagem detecta
-# INSTALL_TB=true, executa o ThingsboardInstallApplication e finaliza o container.
-ensure_edge_installed() {
-  log "Verificando schema do ThingsBoard Edge no PostgreSQL..."
-
-  log "  - subindo container 'db' temporariamente para validação."
-  docker compose up -d --wait db >/dev/null
-
-  if edge_schema_installed; then
-    log "  - schema já instalado, nada a fazer."
-    return 0
-  fi
-
-  log "  - schema ausente; executando install (alguns minutos)..."
-  docker compose run --rm \
-    -e INSTALL_TB=true \
-    -e LOAD_DEMO=false \
-    edge
-  log "  - schema instalado com sucesso."
-}
-
 main() {
   require docker
   require awk
@@ -236,9 +205,9 @@ main() {
   ensure_env_file
   ensure_network
   ensure_volumes
-  ensure_edge_installed
 
   log "Pronto. Suba a stack com: docker compose up -d --wait"
+  log "(o serviço 'init' instala o schema automaticamente no primeiro up)."
 }
 
 main "$@"
