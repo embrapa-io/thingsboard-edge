@@ -30,6 +30,45 @@ Com o Edge já cadastrado no _server_, defina no `.env` os parâmetros de conex�
 docker compose up -d --wait
 ```
 
+No Windows com Docker Desktop, use o bootstrap equivalente em PowerShell:
+
+```powershell
+.\bootstrap.ps1
+```
+
+O script cria a rede e os volumes externos e configura `TB_SERVER=thingsboard`
+para alcançar diretamente o serviço da Central pela rede Docker compartilhada
+`io_thingsboard` (sem depender de DNS do host). Depois de cadastrar o Edge na
+Central e preencher `TB_EDGE_KEY` e `TB_EDGE_SECRET` no `.env`, suba a stack
+com:
+
+```powershell
+.\bootstrap.ps1 -Start
+```
+
+As portas UDP do CoAP do Edge sao remapeadas para `6583-6588`, pois a Central local ja utiliza `5683-5688`. MQTT fica disponivel em `localhost:9883`, MQTTS em `localhost:9884` e a interface web em `http://localhost:9190`.
+
+O listener MQTTS do Edge usa, por padrão no ambiente local, os certificados de
+desenvolvimento montados da Central (`../thingsboard/certs/server.pem` e
+`server_key.pem`) como somente leitura. Em uma implantação real, defina
+`MQTT_SSL_CERT_FILE` e `MQTT_SSL_KEY_FILE` para um certificado próprio cujo SAN
+contenha o hostname público do Edge. Esse TLS é independente de
+`CLOUD_RPC_SSL_ENABLED`, que protege o canal Edge–Central.
+
+Ao cadastrar os atributos de conectividade do Edge na Central, use o endereço
+que os devices realmente alcançarão e as portas externas:
+
+```text
+mqttHost=<hostname-publico-ou-ip-do-edge>
+mqttEnabled=true|false
+mqttPort=9883
+mqttsEnabled=true
+mqttsPort=9884
+```
+
+O dashboard recomenda MQTTS e só habilita MQTT simples quando
+`mqttEnabled=true` e o endpoint estiver publicado.
+
 O `bootstrap.sh` é idempotente e voltado para uso local/dev: gera `.env` (com segredos aleatórios para `DB_PASSWORD` e `PGADMIN_PASSWORD`), cria a rede externa `io_thingsboard_edge` e provisiona os volumes Docker (incluindo bind-mounts de `log/` e `backup/`).
 
 A **instalação do schema** do Edge no PostgreSQL é feita automaticamente pelo próprio _entrypoint_ da imagem `thingsboard/tb-edge` no primeiro launch (controlada pelo marker `/data/.firstlaunch` no volume `tb_data`) — então não depende do `bootstrap.sh`. Isso permite que a plataforma de _deploy_ do Embrapa I/O (que provisiona volumes/`.env` por conta própria) suba a stack apenas com `docker compose up -d --wait`.

@@ -9,7 +9,9 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
     networks:
-      - io
+      io:
+        aliases:
+          - thingsboard-edge-db
     healthcheck:
       test: [ 'CMD-SHELL', 'pg_isready', '-d', 'edge' ]
       interval: 5s
@@ -26,22 +28,42 @@ services:
     ports:
       - "${PORT_WEB}:8080"
       - "${PORT_MQTT}:1883"
-      - "5683-5688:5683-5688/udp"
+      - "${PORT_MQTTS:-9884}:8883"
+      # Host range is configurable because the local Central already uses 5683-5688/udp.
+      - "${PORT_COAP_START:-6583}-${PORT_COAP_END:-6588}:5683-5688/udp"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/edge
+      # O Edge também participa da rede da Central, onde já existe um service
+      # chamado db. Use um alias exclusivo para nunca cruzar os Postgres.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://thingsboard-edge-db:5432/edge
       SPRING_DATASOURCE_USERNAME: ${DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       CLOUD_ROUTING_KEY: ${TB_EDGE_KEY}
       CLOUD_ROUTING_SECRET: ${TB_EDGE_SECRET}
       CLOUD_RPC_HOST: ${TB_SERVER}
       CLOUD_RPC_SSL_ENABLED: "false"
+      # TLS do MQTT de devices é independente do TLS do canal Edge-Central.
+      MQTT_ENABLED: "${MQTT_ENABLED:-true}"
+      MQTT_BIND_ADDRESS: "${MQTT_BIND_ADDRESS:-0.0.0.0}"
+      MQTT_BIND_PORT: "1883"
+      MQTT_SSL_ENABLED: "${MQTT_SSL_ENABLED:-true}"
+      MQTT_SSL_BIND_ADDRESS: "${MQTT_SSL_BIND_ADDRESS:-0.0.0.0}"
+      MQTT_SSL_BIND_PORT: "8883"
+      MQTT_SSL_PROTOCOL: "${MQTT_SSL_PROTOCOL:-TLSv1.2}"
+      MQTT_SSL_CREDENTIALS_TYPE: "PEM"
+      MQTT_SSL_PEM_CERT: "/etc/tb-edge/certs/server.pem"
+      MQTT_SSL_PEM_KEY: "/etc/tb-edge/certs/server_key.pem"
     volumes:
       - tb_data:/data
       - log_data:/var/log/tb-edge
+      # Defaults point to the local Central development certificate. Deployments
+      # must provide an Edge certificate with the public hostname in its SAN.
+      - "${MQTT_SSL_CERT_FILE:-../thingsboard/certs/server.pem}:/etc/tb-edge/certs/server.pem:ro"
+      - "${MQTT_SSL_KEY_FILE:-../thingsboard/certs/server_key.pem}:/etc/tb-edge/certs/server_key.pem:ro"
     networks:
       - io
+      - thingsboard
 
   pgadmin:
     image: dpage/pgadmin4:9
@@ -86,6 +108,11 @@ services:
 networks:
   io:
     name: io_thingsboard_edge
+    external: true
+  thingsboard:
+    # Rede externa da Central; permite RPC interno por service name, sem
+    # depender de host.docker.internal ou de resolução IPv6 do host.
+    name: io_thingsboard
     external: true
 
 volumes:
