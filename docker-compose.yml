@@ -20,7 +20,7 @@ services:
       start_period: 5s
 
   edge:
-    image: thingsboard/tb-edge:4.3.1EDGE-latest
+    image: thingsboard/tb-edge:4.3.1.2EDGE
     restart: unless-stopped
     depends_on:
       db:

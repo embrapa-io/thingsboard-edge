@@ -6,11 +6,11 @@ Baseado na [configuração de _deploy_ do ThingsBoard Edge usando Docker](https:
 
 ## Pilha tecnológica
 
-Imagens fixadas na **macro-versão** de cada componente, recebendo apenas _patches_ de segurança/_bugfix_ (sem _breaking changes_):
+Imagens fixadas na **macro-versão** de cada componente, recebendo apenas _patches_ de segurança/_bugfix_ (sem _breaking changes_). O Edge é a exceção: fica fixado no _patch_ exato, acompanhando a linha 4.3 do [ThingsBoard CE Server](../thingsboard), e qualquer atualização deve ser deliberada:
 
 | Componente | Imagem | Versão |
 |---|---|---|
-| ThingsBoard Edge CE | `thingsboard/tb-edge` | `4.3.1EDGE-latest` |
+| ThingsBoard Edge CE | `thingsboard/tb-edge` | `4.3.1.2EDGE` |
 | PostgreSQL | `postgres` | `17` |
 | pgAdmin 4 | `dpage/pgadmin4` | `9` |
 | Backup do Postgres | `prodrigestivill/postgres-backup-local` | `17` |
@@ -85,15 +85,15 @@ Para subir a versão do ThingsBoard Edge, ajuste a tag em `docker-compose.yml` (
 
 ```sh
 docker compose stop && docker compose pull && docker compose up -d db
-echo '4.3.1.1' > $(pwd)/log/.upgradeversion
+echo '4.3.1.2' > $(pwd)/log/.upgradeversion
 docker run -it --rm \
   --network "$(docker compose ps --format '{{.Service}} {{.Network}}' db | awk '{print $2}')" \
   -e SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/edge \
   -e SPRING_DATASOURCE_USERNAME="$(grep ^DB_USER= .env | cut -d= -f2)" \
   -e SPRING_DATASOURCE_PASSWORD="$(grep ^DB_PASSWORD= .env | cut -d= -f2)" \
-  thingsboard/tb-edge:4.3.1EDGE-latest upgrade-tb-edge.sh
+  thingsboard/tb-edge:<nova-versao> upgrade-tb-edge.sh
 docker compose rm edge
 docker compose up -d --force-recreate --wait
 ```
 
-Substitua `'4.3.1.1'` pela versão **atual** instalada (que será sobrescrita pela nova).
+Substitua `'4.3.1.2'` pela versão **atual** instalada (que será sobrescrita pela nova) e `<nova-versao>` pela mesma _tag_ colocada no `docker-compose.yml` (ex.: `4.3.1.6EDGE`). Mantenha o Edge na mesma linha de versão do _server_ e não use versões 4.4 ou superiores.
