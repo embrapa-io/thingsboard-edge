@@ -2,15 +2,15 @@
 
 Configuração de _deploy_ do [ThingsBoard Edge](https://thingsboard.io/docs/edge/) no ecossistema do Embrapa I/O.
 
-Baseado na [configuração de _deploy_ do ThingsBoard Edge usando Docker](https://thingsboard.io/docs/user-guide/install/edge/docker/), e atua em conjunto com a stack do [ThingsBoard CE Server](../thingsboard).
+Baseado na [configuração de _deploy_ do ThingsBoard Edge usando Docker](https://thingsboard.io/docs/user-guide/install/edge/docker/), e atua em conjunto com a stack do [ThingsBoard Server](../thingsboard).
 
 ## Pilha tecnológica
 
-Imagens fixadas na **macro-versão** de cada componente, recebendo apenas _patches_ de segurança/_bugfix_ (sem _breaking changes_). O Edge é a exceção: fica fixado no _patch_ exato, acompanhando a linha 4.3 do [ThingsBoard CE Server](../thingsboard), e qualquer atualização deve ser deliberada:
+Imagens fixadas na **macro-versão** de cada componente, recebendo apenas _patches_ de segurança/_bugfix_ (sem _breaking changes_). O Edge é a exceção: fica fixado no _patch_ exato, na mesma versão do [ThingsBoard Server](../thingsboard), e qualquer atualização deve ser deliberada:
 
 | Componente | Imagem | Versão |
 |---|---|---|
-| ThingsBoard Edge CE | `thingsboard/tb-edge` | `4.3.1.2EDGE` |
+| ThingsBoard Edge | `thingsboard/tb-edge-pe` | `4.4.0EDGEPE` |
 | PostgreSQL | `postgres` | `17` |
 | pgAdmin 4 | `dpage/pgadmin4` | `9` |
 | Backup do Postgres | `prodrigestivill/postgres-backup-local` | `17` |
@@ -71,7 +71,7 @@ O dashboard recomenda MQTTS e só habilita MQTT simples quando
 
 O `bootstrap.sh` é idempotente e voltado para uso local/dev: gera `.env` (com segredos aleatórios para `DB_PASSWORD` e `PGADMIN_PASSWORD`), cria a rede externa `io_thingsboard_edge` e provisiona os volumes Docker (incluindo bind-mounts de `log/` e `backup/`).
 
-A **instalação do schema** do Edge no PostgreSQL é feita automaticamente pelo próprio _entrypoint_ da imagem `thingsboard/tb-edge` no primeiro launch (controlada pelo marker `/data/.firstlaunch` no volume `tb_data`) — então não depende do `bootstrap.sh`. Isso permite que a plataforma de _deploy_ do Embrapa I/O (que provisiona volumes/`.env` por conta própria) suba a stack apenas com `docker compose up -d --wait`.
+A **instalação do schema** do Edge no PostgreSQL é feita automaticamente pelo próprio _entrypoint_ da imagem `thingsboard/tb-edge-pe` no primeiro launch (controlada pelo marker `/data/.firstlaunch` no volume `tb_data`) — então não depende do `bootstrap.sh`. Isso permite que a plataforma de _deploy_ do Embrapa I/O (que provisiona volumes/`.env` por conta própria) suba a stack apenas com `docker compose up -d --wait`.
 
 ## Configuração
 
@@ -85,15 +85,17 @@ Para subir a versão do ThingsBoard Edge, ajuste a tag em `docker-compose.yml` (
 
 ```sh
 docker compose stop && docker compose pull && docker compose up -d db
-echo '4.3.1.2' > $(pwd)/log/.upgradeversion
+echo '4.4.0' > $(pwd)/log/.upgradeversion
 docker run -it --rm \
   --network "$(docker compose ps --format '{{.Service}} {{.Network}}' db | awk '{print $2}')" \
   -e SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/edge \
   -e SPRING_DATASOURCE_USERNAME="$(grep ^DB_USER= .env | cut -d= -f2)" \
   -e SPRING_DATASOURCE_PASSWORD="$(grep ^DB_PASSWORD= .env | cut -d= -f2)" \
-  thingsboard/tb-edge:<nova-versao> upgrade-tb-edge.sh
+  thingsboard/tb-edge-pe:<nova-versao> upgrade-tb-edge.sh
 docker compose rm edge
 docker compose up -d --force-recreate --wait
 ```
 
-Substitua `'4.3.1.2'` pela versão **atual** instalada (que será sobrescrita pela nova) e `<nova-versao>` pela mesma _tag_ colocada no `docker-compose.yml` (ex.: `4.3.1.6EDGE`). Mantenha o Edge na mesma linha de versão do _server_ e não use versões 4.4 ou superiores.
+Substitua `'4.4.0'` pela versão **atual** instalada (que será sobrescrita pela nova) e `<nova-versao>` pela mesma _tag_ colocada no `docker-compose.yml`. Mantenha o Edge na mesma versão do _server_.
+
+> **4.4.** O Edge 4.4 só é publicado como `thingsboard/tb-edge-pe` e não verifica licença própria: usa a do servidor, e funciona sem conexão com ele. O plano gratuito do servidor permite 1 Edge. O banco do Edge CE 4.3 não migra para o Edge 4.4: suba o 4.4 com volumes novos (`VOLUME_DB`, `VOLUME_EDGE`); ele sincroniza tudo do servidor. A linha 4.3 está congelada na tag `iot-tb4.3.0` e no branch `iot-tb4.3`.

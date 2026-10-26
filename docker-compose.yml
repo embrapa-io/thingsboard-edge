@@ -20,7 +20,8 @@ services:
       start_period: 5s
 
   edge:
-    image: thingsboard/tb-edge:4.3.1.2EDGE
+    # Na 4.4 o Edge só é publicado como tb-edge-pe; a licença vem do servidor.
+    image: thingsboard/tb-edge-pe:4.4.0EDGEPE
     restart: unless-stopped
     depends_on:
       db:
